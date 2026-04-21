@@ -36,32 +36,9 @@ Il permet :
 ---
 
 ## 📁 Structure du projet
-├── config/
-│ └── constants.php
-├── auth/
-│ ├── login.php
-│ ├── logout.php
-│ └── session.php
-├── modules/
-│ ├── produits/
-│ │ ├── scanner.php
-│ │ ├── traiter_produit.php
-│ │ └── liste.php
-│ ├── facturation/
-│ │ ├── caisse.php
-│ │ ├── ajouter_article.php
-│ │ └── valider_facture.php
-│ └── admin/
-│ └── gestion_comptes.php
-├── data/
-│ ├── produits.json
-│ ├── factures.json
-│ └── utilisateurs.json
-├── includes/
-│ └── fonctions.php
-├── assets/
-│ ├── css/
-│ └── js/
-│ └── quagga-init.js
-└── rapports/
-
+| Dossier | Fichier |
+|---------|---------|
+| config/ | constants.php |
+| auth/ | login.php, logout.php, session.php |
+| modules/produits/ | scanner.php, traiter_produit.php, liste.php |
+| ...
