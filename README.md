@@ -36,3 +36,31 @@ Il permet :
 ---
 
 ## 📁 Structure du projet
+├── config/
+│ └── constants.php # Taux TVA, chemins, rôles
+├── auth/
+│ ├── login.php # Formulaire de connexion
+│ ├── logout.php # Déconnexion
+│ └── session.php # Vérification session et rôles
+├── modules/
+│ ├── produits/
+│ │ ├── scanner.php # Scan + formulaire produit
+│ │ ├── traiter_produit.php # Ajout/modification produit
+│ │ └── liste.php # Catalogue produits
+│ ├── facturation/
+│ │ ├── caisse.php # Interface caissier
+│ │ ├── ajouter_article.php
+│ │ └── valider_facture.php
+│ └── admin/
+│ └── gestion_comptes.php # Gestion utilisateurs (Super Admin)
+├── data/
+│ ├── produits.json
+│ ├── factures.json
+│ └── utilisateurs.json
+├── includes/
+│ └── fonctions.php # Fonctions utilitaires (lireJSON, etc.)
+├── assets/
+│ ├── css/
+│ └── js/
+│ └── quagga-init.js
+└── rapports/ # Génération rapports (optionnel)
