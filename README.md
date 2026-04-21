@@ -16,7 +16,7 @@ Développement d’un système de caisse informatisé en **PHP procédural** ave
 
 | Membre      | Rôle                                                                 |
 |-------------|----------------------------------------------------------------------|
-| **Mardoché** | Module produits, scan codes-barres, validation serveur, fichiers JSON |
+| **Mardochée** | Module produits, scan codes-barres, validation serveur, fichiers JSON |
 | **Tsaphnath**| Module facturation, panier, calculs TVA, mise à jour stock           |
 | **Prince**   | Authentification, gestion des comptes, sessions, contrôle d’accès    |
 
