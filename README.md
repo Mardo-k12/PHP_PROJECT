@@ -37,30 +37,30 @@ Il permet :
 
 ## 📁 Structure du projet
 ├── config/
-│ └── constants.php # Taux TVA, chemins, rôles
+│   └── constants.php
 ├── auth/
-│ ├── login.php # Formulaire de connexion
-│ ├── logout.php # Déconnexion
-│ └── session.php # Vérification session et rôles
+│   ├── login.php
+│   ├── logout.php
+│   └── session.php
 ├── modules/
-│ ├── produits/
-│ │ ├── scanner.php # Scan + formulaire produit
-│ │ ├── traiter_produit.php # Ajout/modification produit
-│ │ └── liste.php # Catalogue produits
-│ ├── facturation/
-│ │ ├── caisse.php # Interface caissier
-│ │ ├── ajouter_article.php
-│ │ └── valider_facture.php
-│ └── admin/
-│ └── gestion_comptes.php # Gestion utilisateurs (Super Admin)
+│   ├── produits/
+│   │   ├── scanner.php
+│   │   ├── traiter_produit.php
+│   │   └── liste.php
+│   ├── facturation/
+│   │   ├── caisse.php
+│   │   ├── ajouter_article.php
+│   │   └── valider_facture.php
+│   └── admin/
+│       └── gestion_comptes.php
 ├── data/
-│ ├── produits.json
-│ ├── factures.json
-│ └── utilisateurs.json
+│   ├── produits.json
+│   ├── factures.json
+│   └── utilisateurs.json
 ├── includes/
-│ └── fonctions.php # Fonctions utilitaires (lireJSON, etc.)
+│   └── fonctions.php
 ├── assets/
-│ ├── css/
-│ └── js/
-│ └── quagga-init.js
-└── rapports/ # Génération rapports (optionnel)
+│   ├── css/
+│   └── js/
+│       └── quagga-init.js
+└── rapports/
