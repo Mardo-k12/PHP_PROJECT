@@ -1,9 +1,8 @@
 <?php
 require_once __DIR__ . '/../../config/constants.php';
-require_once __DIR__ . '/../../auth/session.php';
-require_once __DIR__ . '/../../includes/fonctions.php';
+require_once ROOT_PATH . '/auth/session.php';
+require_once ROOT_PATH . '/includes/fonctions.php';
 
-// Vérification des droits (Manager ou Super Admin)
 verifierRole([ROLE_MANAGER, ROLE_SUPER_ADMIN]);
 
 $produits = lireJSON(PRODUITS_FILE);
@@ -13,7 +12,6 @@ $code_barre = $_GET['code'] ?? '';
 $produit_trouve = null;
 $old_input = [];
 
-// Récupération des erreurs ou anciennes valeurs depuis la session (après soumission)
 if (isset($_SESSION['form_errors'])) {
     $message_erreur = implode('<br>', $_SESSION['form_errors']);
     $old_input = $_SESSION['old_input'] ?? [];
@@ -22,7 +20,6 @@ if (isset($_SESSION['form_errors'])) {
     $message_succes = 'Produit enregistré avec succès !';
 }
 
-// Si un code-barres est passé en paramètre, on recherche le produit
 if ($code_barre) {
     $produit_trouve = produitExiste($code_barre, $produits);
 }
@@ -44,7 +41,6 @@ if ($code_barre) {
 </head>
 <body>
     <h1>Enregistrement / modification de produit</h1>
-
     <?php if ($message_succes): ?>
         <div class="success"><?= htmlspecialchars($message_succes) ?></div>
     <?php endif; ?>
@@ -69,48 +65,27 @@ if ($code_barre) {
     <h2><?= $produit_trouve ? 'Modifier le produit' : 'Ajouter un nouveau produit' ?></h2>
     <form action="traiter_produit.php" method="post">
         <input type="hidden" name="code_barre" value="<?= htmlspecialchars($code_barre) ?>">
-
         <label>Nom :</label>
         <input type="text" name="nom" value="<?= htmlspecialchars($old_input['nom'] ?? ($produit_trouve['nom'] ?? '')) ?>" required><br>
-
         <label>Prix unitaire HT (CDF) :</label>
         <input type="number" step="1" name="prix" value="<?= htmlspecialchars($old_input['prix'] ?? ($produit_trouve['prix_unitaire_ht'] ?? '')) ?>" required><br>
-
         <label>Date d'expiration (AAAA-MM-JJ) :</label>
         <input type="date" name="date_expiration" value="<?= htmlspecialchars($old_input['date_expiration'] ?? ($produit_trouve['date_expiration'] ?? '')) ?>" required><br>
-
         <label>Quantité en stock :</label>
         <input type="number" step="1" name="quantite_stock" value="<?= htmlspecialchars($old_input['quantite_stock'] ?? ($produit_trouve['quantite_stock'] ?? '')) ?>" required><br>
-
         <button type="submit">Enregistrer</button>
     </form>
-
     <p><a href="liste.php">Voir tous les produits</a></p>
-
     <script>
-        // Initialisation de QuaggaJS
         Quagga.init({
-            inputStream: {
-                name: "Live",
-                type: "LiveStream",
-                target: document.querySelector('#interactive')
-            },
-            decoder: {
-                readers: ["ean_reader", "code_128_reader", "code_39_reader"]
-            }
+            inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#interactive') },
+            decoder: { readers: ["ean_reader", "code_128_reader", "code_39_reader"] }
         }, function(err) {
-            if (err) {
-                console.error(err);
-                alert("Impossible d'accéder à la caméra.");
-                return;
-            }
+            if (err) { console.error(err); alert("Impossible d'accéder à la caméra."); return; }
             Quagga.start();
         });
-
         Quagga.onDetected(function(result) {
-            var code = result.codeResult.code;
-            // Rediriger vers la même page avec le code-barres scanné
-            window.location.href = "scanner.php?code=" + encodeURIComponent(code);
+            window.location.href = "scanner.php?code=" + encodeURIComponent(result.codeResult.code);
         });
     </script>
 </body>
