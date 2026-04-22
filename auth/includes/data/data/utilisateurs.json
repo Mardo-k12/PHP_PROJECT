@@ -1,0 +1,10 @@
+[
+  {
+    "identifiant": "manager1",
+    "mot_de_passe": "$2y$10$123456789012345678901uMvKx6Z6x6Z6x6Z6x6Z6x6Z6x6Z6",
+    "role": "manager",
+    "nom_complet": "Manager Test",
+    "date_creation": "2026-04-22",
+    "actif": true
+  }
+]
