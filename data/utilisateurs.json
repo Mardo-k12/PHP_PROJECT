@@ -1,0 +1,26 @@
+[
+    {
+        "identifiant": "admin.super",
+        "mot_de_passe": "$2y$10$YourHashedPasswordHere",
+        "role": "super_admin",
+        "nom_complet": "Administrateur Général",
+        "date_creation": "2026-04-17",
+        "actif": true
+    },
+    {
+        "identifiant": "manager.magasin",
+        "mot_de_passe": "$2y$10$YourHashedPasswordHere",
+        "role": "manager",
+        "nom_complet": "Responsable Magasin",
+        "date_creation": "2026-04-17",
+        "actif": true
+    },
+    {
+        "identifiant": "caissier.jean",
+        "mot_de_passe": "$2y$10$YourHashedPasswordHere",
+        "role": "caissier",
+        "nom_complet": "Jean Caissier",
+        "date_creation": "2026-04-17",
+        "actif": true
+    }
+]
