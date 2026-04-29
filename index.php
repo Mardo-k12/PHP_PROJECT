@@ -13,7 +13,7 @@ if (!isset($_SESSION['user'])) {
         'username' => 'mardoche',
         'email' => 'mardoche@example.com',
         'role' => 'manager',
-        'nom' => 'Mardoché'
+        'nom' => 'Mardochée'
     ];
 }
 
@@ -159,8 +159,9 @@ $utilisateur = $_SESSION['user'] ?? null;
 
         <div class="footer">
             <p>Système de Facturation - Projet UPC Faculté des Sciences Informatiques</p>
-            <p>Équipe: Mardoché | Tsaphnath | Prince</p>
+            <p>Équipe: Mardochée | Tsaphnath | Prince</p>
         </div>
     </div>
 </body>
 </html>
+http://localhost:8000
