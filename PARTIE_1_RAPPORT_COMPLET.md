@@ -1,5 +1,5 @@
 # 📋 RAPPORT COMPLET - PARTIE 1 : ENREGISTREMENT DES PRODUITS
-## Projet Mardoché - Système de Facturation avec Lecteur de Codes-Barres
+## Projet Mardochée - Système de Facturation avec Lecteur de Codes-Barres
 
 **Date:** 29 avril 2026  
 **Responsable:** Mardoché (Module Produits)  
@@ -226,7 +226,7 @@ json_decode(, true)          // Validation JSON
 | Username | Rôle | Statut |
 |----------|------|--------|
 | prince | super_admin | ✅ Actif |
-| mardoche | manager | ✅ Actif |
+| mardochee | manager | ✅ Actif |
 | tsaphnath | manager | ✅ Actif |
 | caissier1 | caissier | ✅ Actif |
 
