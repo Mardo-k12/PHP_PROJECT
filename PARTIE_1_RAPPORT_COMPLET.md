@@ -416,8 +416,8 @@ json_decode(, true)          // Validation JSON
 
 ## 📞 CONTACT
 
-**Responsable Partie 1:** Mardoché  
-**Email:** mardoche@example.com  
+**Responsable Partie 1:** Mardochée  
+**Email:** mardocheekanushipi@gmail.com  
 **Rôle:** Manager  
 
 ---

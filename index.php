@@ -10,8 +10,8 @@ session_start();
 if (!isset($_SESSION['user'])) {
     $_SESSION['user'] = [
         'id' => 2,
-        'username' => 'mardoche',
-        'email' => 'mardoche@example.com',
+        'username' => 'Mardochée',
+        'email' => 'mardocheekanushipi@.com',
         'role' => 'manager',
         'nom' => 'Mardochée'
     ];
