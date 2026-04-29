@@ -1,1 +1,67 @@
-[]
+[
+  {
+    "code_barre": "3017760144318",
+    "nom": "Lait frais UHT 1L",
+    "prix_unitaire_ht": 1500,
+    "taux_tva": 16,
+    "date_expiration": "2026-07-15",
+    "quantite_stock": 45,
+    "date_creation": "2026-01-10 10:30:00",
+    "date_modification": "2026-04-25 14:15:00",
+    "statut": "actif",
+    "createur_id": 2,
+    "modificateur_id": 2
+  },
+  {
+    "code_barre": "5900095051030",
+    "nom": "Pain complet 400g",
+    "prix_unitaire_ht": 800,
+    "taux_tva": 16,
+    "date_expiration": "2026-05-02",
+    "quantite_stock": 12,
+    "date_creation": "2026-01-15 08:45:00",
+    "date_modification": "2026-04-28 09:20:00",
+    "statut": "actif",
+    "createur_id": 2,
+    "modificateur_id": 2
+  },
+  {
+    "code_barre": "3596710048305",
+    "nom": "Beurre doux 250g",
+    "prix_unitaire_ht": 3200,
+    "taux_tva": 16,
+    "date_expiration": "2026-08-30",
+    "quantite_stock": 8,
+    "date_creation": "2026-01-20 11:00:00",
+    "date_modification": "2026-04-22 16:45:00",
+    "statut": "actif",
+    "createur_id": 2,
+    "modificateur_id": 2
+  },
+  {
+    "code_barre": "8019419047200",
+    "nom": "Riz long grain 1kg",
+    "prix_unitaire_ht": 1200,
+    "taux_tva": 0,
+    "date_expiration": "2027-01-10",
+    "quantite_stock": 156,
+    "date_creation": "2026-02-01 13:30:00",
+    "date_modification": "2026-04-20 10:15:00",
+    "statut": "actif",
+    "createur_id": 2,
+    "modificateur_id": 2
+  },
+  {
+    "code_barre": "5901234123457",
+    "nom": "Huile de palme 1L",
+    "prix_unitaire_ht": 2100,
+    "taux_tva": 0,
+    "date_expiration": "2027-06-15",
+    "quantite_stock": 32,
+    "date_creation": "2026-02-10 09:00:00",
+    "date_modification": "2026-04-25 14:30:00",
+    "statut": "actif",
+    "createur_id": 2,
+    "modificateur_id": 2
+  }
+]

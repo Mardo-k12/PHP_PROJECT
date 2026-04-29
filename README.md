@@ -18,7 +18,7 @@ Ce projet consiste en le développement d’un système de caisse informatisé e
 
 | Membre        | Responsabilités |
 |--------------|----------------|
-| **Mardochée**  | Module produits, scan des codes-barres, validation côté serveur, gestion des fichiers JSON |
+| **Mardoché**  | Module produits, scan des codes-barres, validation côté serveur, gestion des fichiers JSON |
 | **Tsaphnath** | Module facturation, gestion du panier, calcul de la TVA, mise à jour du stock |
 | **Prince**    | Authentification, gestion des comptes, sessions, contrôle d’accès |
 

@@ -1,69 +1,28 @@
 <?php
 require_once __DIR__ . '/../../config/constants.php';
-require_once __DIR__ . '/../../auth/session.php';
-require_once __DIR__ . '/../../includes/fonctions.php';
-require_once __DIR__ . '/../../includes/fonctions-produits.php';
+require_once ROOT_PATH . '/auth/includes/session.php';
+require_once ROOT_PATH . '/auth/includes/fonctions.php';
 
-// Vérifier les rôles autorisés (Manager et Super Admin)
 verifierRole([ROLE_MANAGER, ROLE_SUPER_ADMIN]);
 
+$produits = lireJSON(PRODUITS_FILE);
 $message_erreur = '';
 $message_succes = '';
 $code_barre = $_GET['code'] ?? '';
 $produit_trouve = null;
 $old_input = [];
-$mode = 'nouveau'; // 'nouveau' ou 'existant'
 
-// Récupérer les anciennes valeurs en cas d'erreur
 if (isset($_SESSION['form_errors'])) {
     $message_erreur = implode('<br>', $_SESSION['form_errors']);
-    $old_input = extraireAnciennesValeurs();
-} 
-
-if (isset($_SESSION['success_message'])) {
-    $message_succes = $_SESSION['success_message'];
-    unset($_SESSION['success_message']);
+    $old_input = $_SESSION['old_input'] ?? [];
+    unset($_SESSION['form_errors'], $_SESSION['old_input']);
+} elseif (isset($_GET['success']) && isset($_SESSION['message_succes'])) {
+    $message_succes = $_SESSION['message_succes'];
+    unset($_SESSION['message_succes']);
 }
 
-// Traiter le code-barres scanné ou saisi
 if ($code_barre) {
-    $produit_trouve = obtenirProduitParCodeBarre($code_barre, PRODUITS_FILE);
-    if ($produit_trouve) {
-        $mode = 'existant';
-        $old_input = $produit_trouve;
-    }
-}
-
-// Traiter la soumission du formulaire
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $donnees = [
-        'code_barre' => $_POST['code_barre'] ?? '',
-        'nom' => $_POST['nom'] ?? '',
-        'prix_unitaire_ht' => $_POST['prix_unitaire_ht'] ?? '',
-        'date_expiration' => $_POST['date_expiration'] ?? '',
-        'quantite_stock' => $_POST['quantite_stock'] ?? ''
-    ];
-    
-    $produit_existant = obtenirProduitParCodeBarre($donnees['code_barre'], PRODUITS_FILE);
-    
-    if ($produit_existant) {
-        // Modification
-        $resultat = modifierProduit($donnees['code_barre'], $donnees, PRODUITS_FILE);
-    } else {
-        // Ajout
-        $resultat = ajouterProduit($donnees, PRODUITS_FILE);
-    }
-    
-    if ($resultat['succes']) {
-        $_SESSION['success_message'] = $resultat['message'];
-        header('Location: scanner.php?success=1');
-        exit();
-    } else {
-        sauvegarderAnciennesValeurs($donnees);
-        sauvegarderErreurs($resultat['erreurs']);
-        header('Location: scanner.php?code=' . urlencode($donnees['code_barre']));
-        exit();
-    }
+    $produit_trouve = produitExiste($code_barre, $produits);
 }
 ?>
 <!DOCTYPE html>
@@ -71,392 +30,196 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enregistrement de Produit</title>
+    <title>Enregistrement produit - Mardoché</title>
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
-    <link rel="stylesheet" href="<?= ROOT_PATH ?>/assets/css/style.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-            margin: 0;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
         }
-        
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        h1 {
-            color: #333;
-            border-bottom: 3px solid #007bff;
-            padding-bottom: 10px;
-        }
-        
-        .alert {
-            padding: 12px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-            border-left: 4px solid;
-        }
-        
-        .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-            border-color: #c3e6cb;
-        }
-        
-        .alert-danger {
-            background-color: #f8d7da;
-            color: #721c24;
-            border-color: #f5c6cb;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
-        }
-        
-        input[type="text"],
-        input[type="number"],
-        input[type="date"],
-        select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); padding: 30px; }
+        header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #667eea; padding-bottom: 15px; }
+        header h1 { color: #333; font-size: 28px; }
+        header p { color: #666; margin-top: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .error ul { margin-left: 20px; margin-top: 10px; }
+        .section { margin-bottom: 30px; }
+        .section h2 { color: #667eea; font-size: 20px; margin-bottom: 15px; border-left: 4px solid #667eea; padding-left: 10px; }
+        .viewport { width: 100%; max-width: 400px; height: 300px; border: 3px solid #667eea; border-radius: 8px; margin-bottom: 20px; background: #000; }
+        input[type="text"], input[type="number"], input[type="date"], button { 
+            width: 100%; max-width: 350px; 
+            margin: 10px 0; 
+            padding: 12px 15px; 
+            border: 2px solid #ddd; 
+            border-radius: 5px;
             font-size: 14px;
-            box-sizing: border-box;
         }
-        
-        input[type="text"]:focus,
-        input[type="number"]:focus,
-        input[type="date"]:focus,
-        select:focus {
-            outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 5px rgba(0, 123, 255, 0.25);
-        }
-        
-        .required::after {
-            content: " *";
-            color: red;
-        }
-        
-        button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-right: 10px;
-        }
-        
-        button:hover {
-            background-color: #0056b3;
-        }
-        
-        button.secondary {
-            background-color: #6c757d;
-        }
-        
-        button.secondary:hover {
-            background-color: #545b62;
-        }
-        
-        .button-group {
-            margin-top: 20px;
-        }
-        
-        .scanner-section {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 4px;
-            margin-bottom: 30px;
-        }
-        
-        .scanner-section h2 {
-            margin-top: 0;
-            color: #333;
-        }
-        
-        #video {
-            width: 100%;
-            max-width: 400px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-        
-        .scanner-controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .scanner-input {
-            flex: 1;
-        }
-        
-        .mode-indicator {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
+        input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 5px rgba(102, 126, 234, 0.5); }
+        button { 
+            background: #667eea; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
             font-weight: bold;
-            margin-bottom: 15px;
+            transition: background 0.3s;
         }
-        
-        .mode-nouveau {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .mode-existant {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-        
-        .product-info {
-            background-color: #e7f3ff;
-            padding: 15px;
-            border-left: 4px solid #2196F3;
+        button:hover { background: #764ba2; }
+        .info-produit { 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); 
+            border-left: 5px solid #667eea;
+            padding: 15px; 
             margin-bottom: 20px;
-            border-radius: 4px;
+            border-radius: 5px;
         }
-        
-        .product-info p {
-            margin: 5px 0;
-        }
-        
-        .field-group-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        
-        @media (max-width: 600px) {
-            .field-group-2 {
-                grid-template-columns: 1fr;
-            }
-        }
+        .info-produit strong { color: #667eea; }
+        .info-produit p { margin: 8px 0; color: #333; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; color: #333; margin-bottom: 5px; }
+        .action-links { text-align: center; margin-top: 20px; }
+        .action-links a { color: #667eea; text-decoration: none; margin: 0 15px; font-weight: bold; transition: color 0.3s; }
+        .action-links a:hover { color: #764ba2; text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📦 Enregistrement de Produit</h1>
-        
+        <header>
+            <h1>📦 Enregistrement / Modification de Produits</h1>
+            <p>Module Mardoché - Gestion des produits avec lecteur de codes-barres</p>
+        </header>
+
         <?php if ($message_succes): ?>
-            <div class="alert alert-success">
-                ✓ <?= echapper($message_succes) ?>
-            </div>
+            <div class="success"><?= htmlspecialchars($message_succes) ?></div>
         <?php endif; ?>
-        
         <?php if ($message_erreur): ?>
-            <div class="alert alert-danger">
-                ✗ <?= $message_erreur ?>
+            <div class="error">
+                <strong>❌ Erreur de validation :</strong>
+                <ul><?= $message_erreur ?></ul>
             </div>
         <?php endif; ?>
-        
-        <!-- Section Scanner -->
-        <div class="scanner-section">
-            <h2>Étape 1: Scanner ou saisir le code-barres</h2>
-            
-            <div class="scanner-controls">
-                <input type="text" id="barcodeInput" class="scanner-input" placeholder="Scannez le code-barres ici ou entrez-le manuellement">
-                <button type="button" onclick="activerCamera()">📷 Caméra</button>
-            </div>
-            
-            <video id="video" style="display:none;"></video>
-            <canvas id="canvas" style="display:none;"></canvas>
-            <button type="button" id="toggleScanner" onclick="basculerScanner()" style="display:none;">Arrêter le scanner</button>
+
+        <!-- Section Scan -->
+        <div class="section">
+            <h2>🔍 Scanner un code-barres</h2>
+            <div id="interactive" class="viewport"></div>
+            <input type="hidden" id="scanned_code" value="<?= htmlspecialchars($code_barre) ?>">
+            <p style="text-align: center; color: #666; margin-top: 10px; font-size: 12px;">
+                Positionnez le code-barres face à la caméra
+            </p>
         </div>
-        
-        <!-- Formulaire d'enregistrement -->
-        <form method="POST" action="">
-            <h2>Étape 2: Informations du produit</h2>
-            
-            <?php if ($mode === 'existant'): ?>
-                <div class="mode-indicator mode-existant">
-                    ⚠ Mode modification - Produit existant
+
+        <!-- Affichage du produit existant si trouvé -->
+        <?php if ($produit_trouve): ?>
+            <div class="section">
+                <h2>📋 Produit Existant</h2>
+                <div class="info-produit">
+                    <p><strong>Nom :</strong> <?= htmlspecialchars($produit_trouve['nom']) ?></p>
+                    <p><strong>Code-barres :</strong> <?= htmlspecialchars($produit_trouve['code_barre']) ?></p>
+                    <p><strong>Prix HT :</strong> <?= number_format($produit_trouve['prix_unitaire_ht'], 2, ',', ' ') ?> CDF</p>
+                    <p><strong>TVA :</strong> <?= $produit_trouve['taux_tva'] ?? 16 ?>%</p>
+                    <p><strong>Date d'expiration :</strong> <?= htmlspecialchars($produit_trouve['date_expiration']) ?></p>
+                    <p><strong>Stock :</strong> <?= htmlspecialchars($produit_trouve['quantite_stock']) ?> unités</p>
+                    <p><strong>Statut :</strong> <span style="color: green; font-weight: bold;"><?= htmlspecialchars($produit_trouve['statut'] ?? 'actif') ?></span></p>
                 </div>
-            <?php else: ?>
-                <div class="mode-indicator mode-nouveau">
-                    ✓ Mode ajout - Nouveau produit
-                </div>
-            <?php endif; ?>
-            
-            <div class="form-group">
-                <label for="code_barre" class="required">Code-barres</label>
-                <input type="text" id="code_barre" name="code_barre" 
-                       value="<?= echapper($old_input['code_barre'] ?? '') ?>" required>
             </div>
-            
-            <div class="form-group">
-                <label for="nom" class="required">Nom du produit</label>
-                <input type="text" id="nom" name="nom" 
-                       value="<?= echapper($old_input['nom'] ?? '') ?>" required>
-            </div>
-            
-            <div class="field-group-2">
-                <div class="form-group">
-                    <label for="prix_unitaire_ht" class="required">Prix unitaire HT (<?= DEVISE ?>)</label>
-                    <input type="number" id="prix_unitaire_ht" name="prix_unitaire_ht" 
-                           step="0.01" min="0" value="<?= echapper($old_input['prix_unitaire_ht'] ?? '') ?>" required>
-                </div>
+        <?php endif; ?>
+
+        <!-- Formulaire d'ajout/modification -->
+        <div class="section">
+            <h2><?= $produit_trouve ? '✏️ Modifier le produit' : '➕ Ajouter un nouveau produit' ?></h2>
+            <form action="traiter_produit.php" method="post">
+                <input type="hidden" name="code_barre" value="<?= htmlspecialchars($code_barre) ?>">
                 
                 <div class="form-group">
-                    <label for="quantite_stock" class="required">Quantité initiale en stock</label>
-                    <input type="number" id="quantite_stock" name="quantite_stock" 
-                           min="0" value="<?= echapper($old_input['quantite_stock'] ?? '') ?>" required>
+                    <label for="nom">Nom du produit *</label>
+                    <input type="text" id="nom" name="nom" 
+                        value="<?= htmlspecialchars($old_input['nom'] ?? ($produit_trouve['nom'] ?? '')) ?>" 
+                        placeholder="Ex: Lait frais 1L"
+                        required>
                 </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="date_expiration" class="required">Date d'expiration</label>
-                <input type="date" id="date_expiration" name="date_expiration" 
-                       value="<?= echapper($old_input['date_expiration'] ?? '') ?>" required>
-            </div>
-            
-            <div class="button-group">
-                <button type="submit"><?= $mode === 'existant' ? '✏️ Modifier le produit' : '➕ Ajouter le produit' ?></button>
-                <button type="reset" class="secondary">🔄 Réinitialiser</button>
-                <button type="button" class="secondary" onclick="retour()">← Retour</button>
-            </div>
-        </form>
+
+                <div class="form-group">
+                    <label for="prix">Prix unitaire HT (CDF) *</label>
+                    <input type="number" id="prix" name="prix" step="1" 
+                        value="<?= htmlspecialchars($old_input['prix'] ?? ($produit_trouve['prix_unitaire_ht'] ?? '')) ?>" 
+                        placeholder="Ex: 2500"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label for="date_expiration">Date d'expiration (AAAA-MM-JJ) *</label>
+                    <input type="date" id="date_expiration" name="date_expiration" 
+                        value="<?= htmlspecialchars($old_input['date_expiration'] ?? ($produit_trouve['date_expiration'] ?? '')) ?>" 
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quantite_stock">Quantité en stock *</label>
+                    <input type="number" id="quantite_stock" name="quantite_stock" step="1" 
+                        value="<?= htmlspecialchars($old_input['quantite_stock'] ?? ($produit_trouve['quantite_stock'] ?? '')) ?>" 
+                        placeholder="Ex: 50"
+                        required>
+                </div>
+
+                <button type="submit">💾 Enregistrer</button>
+            </form>
+        </div>
+
+        <!-- Liens de navigation -->
+        <div class="action-links">
+            <a href="liste.php">📚 Voir tous les produits</a>
+            <a href="scanner.php">🔄 Nouveau scan</a>
+        </div>
     </div>
-    
     <script>
-        let scanner = null;
-        let isScannerActive = false;
-        
-        // Gestion du code-barres scanné
-        document.getElementById('barcodeInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const code = this.value.trim();
-                if (code) {
-                    window.location.href = 'scanner.php?code=' + encodeURIComponent(code);
-                }
-            }
-        });
-        
-        // Activer la caméra
-        function activerCamera() {
-            if (isScannerActive) {
-                basculerScanner();
-                return;
-            }
-            
-            const video = document.getElementById('video');
-            video.style.display = 'block';
-            document.getElementById('toggleScanner').style.display = 'inline-block';
-            
-            Quagga.init({
-                inputStream: {
-                    name: "Live",
-                    type: "LiveStream",
-                    target: video,
-                    constraints: {
-                        facingMode: "environment"
-                    }
-                },
-                decoder: {
-                    workers: 2,
-                    debug: false
-                }
-            }, function(err) {
-                if (err) {
-                    console.log(err);
-                    alert('Erreur lors de l\'activation de la caméra: ' + err);
-                    return;
-                }
-                Quagga.start();
-                isScannerActive = true;
-                
-                Quagga.onDetected(function(result) {
-                    const code = result.codeResult.code;
-                    document.getElementById('barcodeInput').value = code;
-                    document.getElementById('code_barre').value = code;
-                    
-                    // Arrêter le scanner et rediriger
-                    Quagga.stop();
-                    window.location.href = 'scanner.php?code=' + encodeURIComponent(code);
-                });
-            });
-        }
-        
-        // Basculer le scanner
-        function basculerScanner() {
-            const video = document.getElementById('video');
-            
-            if (isScannerActive) {
-                Quagga.stop();
-                video.style.display = 'none';
-                document.getElementById('toggleScanner').style.display = 'none';
-                isScannerActive = false;
-            }
-        }
-        
-        // Retour
-        function retour() {
-            window.location.href = 'liste.php';
-        }
-    </script>
-</body>
-</html>
-
-
-    <h2>Scanner un code-barres</h2>
-    <div id="interactive" class="viewport"></div>
-    <input type="hidden" id="scanned_code" value="<?= htmlspecialchars($code_barre) ?>">
-
-    <?php if ($produit_trouve): ?>
-        <div class="info-produit">
-            <strong>Produit existant :</strong><br>
-            Nom : <?= htmlspecialchars($produit_trouve['nom']) ?><br>
-            Prix HT : <?= htmlspecialchars($produit_trouve['prix_unitaire_ht']) ?> CDF<br>
-            Date expiration : <?= htmlspecialchars($produit_trouve['date_expiration']) ?><br>
-            Stock : <?= htmlspecialchars($produit_trouve['quantite_stock']) ?>
-        </div>
-    <?php endif; ?>
-
-    <h2><?= $produit_trouve ? 'Modifier le produit' : 'Ajouter un nouveau produit' ?></h2>
-    <form action="traiter_produit.php" method="post">
-        <input type="hidden" name="code_barre" value="<?= htmlspecialchars($code_barre) ?>">
-        <label>Nom :</label>
-        <input type="text" name="nom" value="<?= htmlspecialchars($old_input['nom'] ?? ($produit_trouve['nom'] ?? '')) ?>" required><br>
-        <label>Prix unitaire HT (CDF) :</label>
-        <input type="number" step="1" name="prix" value="<?= htmlspecialchars($old_input['prix'] ?? ($produit_trouve['prix_unitaire_ht'] ?? '')) ?>" required><br>
-        <label>Date d'expiration (AAAA-MM-JJ) :</label>
-        <input type="date" name="date_expiration" value="<?= htmlspecialchars($old_input['date_expiration'] ?? ($produit_trouve['date_expiration'] ?? '')) ?>" required><br>
-        <label>Quantité en stock :</label>
-        <input type="number" step="1" name="quantite_stock" value="<?= htmlspecialchars($old_input['quantite_stock'] ?? ($produit_trouve['quantite_stock'] ?? '')) ?>" required><br>
-        <button type="submit">Enregistrer</button>
-    </form>
-    <p><a href="liste.php">Voir tous les produits</a></p>
-    <script>
+        // Initialiser Quagga pour la lecture des codes-barres
         Quagga.init({
-            inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#interactive') },
-            decoder: { readers: ["ean_reader", "code_128_reader", "code_39_reader"] }
+            inputStream: { 
+                name: "Live", 
+                type: "LiveStream", 
+                target: document.querySelector('#interactive'),
+                constraints: {
+                    width: 400,
+                    height: 300
+                }
+            },
+            locator: {
+                halfSample: true
+            },
+            frequency: 10,
+            decoder: { 
+                readers: ["ean_reader", "code_128_reader", "code_39_reader", "upc_reader", "ean_8_reader"]
+            }
         }, function(err) {
-            if (err) { console.error(err); alert("Impossible d'accéder à la caméra."); return; }
+            if (err) { 
+                console.error("Erreur Quagga:", err); 
+                alert("⚠️ Impossible d'accéder à la caméra.\nVérifiez les permissions et la connexion.");
+                return; 
+            }
             Quagga.start();
+            console.log("✅ Lecteur de code-barres initialisé avec succès");
         });
+
+        // Détection automatique des codes-barres
         Quagga.onDetected(function(result) {
-            window.location.href = "scanner.php?code=" + encodeURIComponent(result.codeResult.code);
+            if (result.codeResult && result.codeResult.code) {
+                console.log("Code détecté:", result.codeResult.code);
+                Quagga.stop();
+                window.location.href = "scanner.php?code=" + encodeURIComponent(result.codeResult.code);
+            }
+        });
+
+        // Gestion des erreurs lors de la détection
+        Quagga.onProcessed(function(result) {
+            // On peut ajouter une indication visuelle de la détection
+        });
+
+        // Nettoyage à la fermeture de la page
+        window.addEventListener('beforeunload', function() {
+            Quagga.stop();
         });
     </script>
 </body>

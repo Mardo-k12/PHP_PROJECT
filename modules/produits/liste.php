@@ -1,413 +1,288 @@
 <?php
 require_once __DIR__ . '/../../config/constants.php';
-require_once __DIR__ . '/../../auth/session.php';
-require_once __DIR__ . '/../../includes/fonctions.php';
-require_once __DIR__ . '/../../includes/fonctions-produits.php';
+require_once __DIR__ . '/../../auth/includes/session.php';
+require_once __DIR__ . '/../../auth/includes/fonctions.php';
 
-// Vérifier les rôles autorisés (Manager et Super Admin)
+// Vérifier les droits d'accès
 verifierRole([ROLE_MANAGER, ROLE_SUPER_ADMIN]);
 
-$produits = obtenirTousLesProduits(PRODUITS_FILE);
-$utilisateur = obtenirUtilisateurConnecte();
+// Charger les produits
+$produits = lireJSON(PRODUITS_FILE);
+if (!is_array($produits)) {
+    $produits = [];
+}
 
-// Tri
+// Tri par défaut
 $tri = $_GET['tri'] ?? 'nom';
 $ordre = $_GET['ordre'] ?? 'asc';
 
+// Fonction de tri
 usort($produits, function($a, $b) use ($tri, $ordre) {
-    $cmp = 0;
+    $valeur_a = $a[$tri] ?? '';
+    $valeur_b = $b[$tri] ?? '';
     
-    switch($tri) {
-        case 'prix':
-            $cmp = $a['prix_unitaire_ht'] - $b['prix_unitaire_ht'];
-            break;
-        case 'stock':
-            $cmp = $a['quantite_stock'] - $b['quantite_stock'];
-            break;
-        case 'code':
-            $cmp = strcmp($a['code_barre'], $b['code_barre']);
-            break;
-        default: // nom
-            $cmp = strcmp($a['nom'], $b['nom']);
+    if ($ordre === 'desc') {
+        return $valeur_b <=> $valeur_a;
     }
-    
-    return $ordre === 'desc' ? -$cmp : $cmp;
+    return $valeur_a <=> $valeur_b;
 });
+
+// Filtrage par statut
+$filtre_statut = $_GET['statut'] ?? 'tous';
+if ($filtre_statut !== 'tous') {
+    $produits = array_filter($produits, function($p) use ($filtre_statut) {
+        return ($p['statut'] ?? 'actif') === $filtre_statut;
+    });
+}
+
+// Statistiques
+$total_produits = count($produits);
+$valeur_totale_stock = array_reduce($produits, function($carry, $p) {
+    $prix_ttc = $p['prix_unitaire_ht'] * (1 + $p['taux_tva'] / 100);
+    return $carry + ($prix_ttc * $p['quantite_stock']);
+}, 0);
+$total_stock = array_reduce($produits, function($carry, $p) {
+    return $carry + $p['quantite_stock'];
+}, 0);
+$produits_expires = count(array_filter($produits, function($p) {
+    return strtotime($p['date_expiration']) < time();
+}));
 ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catalogue des Produits</title>
+    <title>Catalogue des Produits - Mardoché</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
         }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); padding: 30px; }
+        header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #667eea; padding-bottom: 15px; }
+        header h1 { color: #333; font-size: 28px; }
+        header p { color: #666; margin-top: 5px; }
         
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        .stats { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 15px; 
+            margin-bottom: 30px; 
         }
+        .stat-card { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            text-align: center; 
+        }
+        .stat-value { font-size: 28px; font-weight: bold; }
+        .stat-label { font-size: 12px; opacity: 0.9; margin-top: 5px; }
         
-        .header {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
+        .controls { 
+            display: flex; 
+            gap: 15px; 
+            margin-bottom: 20px; 
+            flex-wrap: wrap; 
             align-items: center;
-            flex-wrap: wrap;
-            gap: 20px;
         }
-        
-        .header h1 {
-            color: #333;
-            flex: 1;
-            min-width: 200px;
-        }
-        
-        .user-info {
-            background: #f8f9fa;
-            padding: 10px 15px;
-            border-radius: 4px;
+        .controls select, .controls a { 
+            padding: 10px 15px; 
+            border: 2px solid #ddd; 
+            border-radius: 5px; 
             font-size: 14px;
-            color: #666;
-        }
-        
-        .actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        button, a.btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
+            background: white;
             cursor: pointer;
             text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            transition: background-color 0.3s;
-        }
-        
-        .btn-primary {
-            background-color: #007bff;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background-color: #0056b3;
-        }
-        
-        .btn-secondary {
-            background-color: #6c757d;
-            color: white;
-        }
-        
-        .btn-secondary:hover {
-            background-color: #545b62;
-        }
-        
-        .stats {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px;
-        }
-        
-        .stat-item {
-            text-align: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 4px;
-        }
-        
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #007bff;
-        }
-        
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-        
-        .table-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        thead {
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #ddd;
-        }
-        
-        th {
-            padding: 15px;
-            text-align: left;
-            font-weight: bold;
             color: #333;
+            transition: all 0.3s;
+        }
+        .controls select:hover, .controls select:focus { border-color: #667eea; }
+        .controls a { background: #667eea; color: white; border-color: #667eea; }
+        .controls a:hover { background: #764ba2; }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+        }
+        th { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 15px; 
+            text-align: left; 
             cursor: pointer;
-            user-select: none;
-        }
-        
-        th:hover {
-            background-color: #e9ecef;
-        }
-        
-        td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        tbody tr:hover {
-            background-color: #f8f9fa;
-        }
-        
-        .sort-indicator {
-            margin-left: 5px;
-            font-size: 12px;
-        }
-        
-        .code-badge {
-            background: #e7f3ff;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-family: monospace;
-        }
-        
-        .price {
-            font-weight: bold;
-            color: #28a745;
-        }
-        
-        .stock {
-            text-align: center;
-        }
-        
-        .stock.low {
-            color: #dc3545;
             font-weight: bold;
         }
-        
-        .actions-cell {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
+        th:hover { opacity: 0.9; }
+        td { 
+            padding: 12px 15px; 
+            border-bottom: 1px solid #eee; 
         }
+        tr:hover { background: #f9f9f9; }
         
-        .actions-cell a {
-            padding: 5px 10px;
-            font-size: 12px;
+        .code-barre { font-family: 'Courier New'; background: #f0f0f0; padding: 3px 6px; border-radius: 3px; }
+        .prix { font-weight: bold; color: #667eea; }
+        .stock-bas { color: #dc3545; font-weight: bold; }
+        .stock-ok { color: #28a745; }
+        .expire { 
+            background: #f8d7da; 
+            color: #721c24; 
+            padding: 8px 12px; 
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .actif { color: #28a745; }
+        .inactif { color: #dc3545; }
+        
+        .actions { 
+            display: flex; 
+            gap: 10px; 
+        }
+        .btn { 
+            padding: 8px 12px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 12px; 
             text-decoration: none;
-            border-radius: 4px;
-            display: inline-block;
+            transition: all 0.3s;
         }
+        .btn-modifier { background: #667eea; color: white; }
+        .btn-modifier:hover { background: #764ba2; }
+        .btn-supprimer { background: #dc3545; color: white; }
+        .btn-supprimer:hover { background: #c82333; }
         
-        .btn-edit {
-            background-color: #ffc107;
-            color: black;
-        }
+        .empty { text-align: center; color: #999; padding: 40px; }
+        .action-links { text-align: center; margin-top: 20px; }
+        .action-links a { color: #667eea; text-decoration: none; margin: 0 15px; font-weight: bold; }
+        .action-links a:hover { text-decoration: underline; }
         
-        .btn-edit:hover {
-            background-color: #e0a800;
-        }
-        
-        .btn-view {
-            background-color: #17a2b8;
-            color: white;
-        }
-        
-        .btn-view:hover {
-            background-color: #138496;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
-        }
-        
-        .empty-state h2 {
-            margin-bottom: 10px;
-            color: #666;
-        }
-        
-        .empty-state p {
-            margin-bottom: 20px;
-        }
-        
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            
-            .actions {
-                width: 100%;
-            }
-            
-            table {
-                font-size: 12px;
-            }
-            
-            td, th {
-                padding: 8px 5px;
-            }
-            
-            .actions-cell {
-                flex-direction: column;
-            }
-        }
+        .alert { padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        .alert-warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- En-tête -->
-        <div class="header">
+        <header>
             <h1>📦 Catalogue des Produits</h1>
-            <div class="user-info">
-                👤 <?= echapper($utilisateur['nom_complet']) ?> (<?= echapper($utilisateur['role']) ?>)
+            <p>Module Mardoché - Gestion du stock</p>
+        </header>
+
+        <!-- Statistiques -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value"><?= $total_produits ?></div>
+                <div class="stat-label">Produits enregistrés</div>
             </div>
-            <div class="actions">
-                <a href="scanner.php" class="btn btn-primary">➕ Nouveau Produit</a>
-                <a href="<?= ROOT_PATH ?>/index.php" class="btn btn-secondary">← Accueil</a>
+            <div class="stat-card">
+                <div class="stat-value"><?= number_format($total_stock, 0, ',', ' ') ?></div>
+                <div class="stat-label">Unités en stock</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value"><?= number_format($valeur_totale_stock / 1, 0, ',', ' ') ?></div>
+                <div class="stat-label">Valeur du stock (CDF)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="<?= $produits_expires > 0 ? 'color: #ff6b6b;' : '' ?>"><?= $produits_expires ?></div>
+                <div class="stat-label">Produits expirés</div>
             </div>
         </div>
-        
-        <?php if (!empty($produits)): ?>
-            <!-- Statistiques -->
-            <div class="stats">
-                <div class="stat-item">
-                    <div class="stat-value"><?= count($produits) ?></div>
-                    <div class="stat-label">Produits</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value"><?= array_sum(array_map(function($p) { return $p['quantite_stock']; }, $produits)) ?></div>
-                    <div class="stat-label">Articles en stock</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">
-                        <?= count(array_filter($produits, function($p) { return $p['quantite_stock'] <= 5; })) ?>
-                    </div>
-                    <div class="stat-label">Stock faible</div>
-                </div>
-            </div>
-            
-            <!-- Tableau -->
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>
-                                <a href="?tri=code&ordre=<?= $tri === 'code' && $ordre === 'asc' ? 'desc' : 'asc' ?>" 
-                                   style="text-decoration: none; color: inherit;">
-                                    Code-barres
-                                    <?php if ($tri === 'code'): ?>
-                                        <span class="sort-indicator"><?= $ordre === 'asc' ? '↑' : '↓' ?></span>
-                                    <?php endif; ?>
-                                </a>
-                            </th>
-                            <th>
-                                <a href="?tri=nom&ordre=<?= $tri === 'nom' && $ordre === 'asc' ? 'desc' : 'asc' ?>"
-                                   style="text-decoration: none; color: inherit;">
-                                    Nom
-                                    <?php if ($tri === 'nom'): ?>
-                                        <span class="sort-indicator"><?= $ordre === 'asc' ? '↑' : '↓' ?></span>
-                                    <?php endif; ?>
-                                </a>
-                            </th>
-                            <th>
-                                <a href="?tri=prix&ordre=<?= $tri === 'prix' && $ordre === 'asc' ? 'desc' : 'asc' ?>"
-                                   style="text-decoration: none; color: inherit;">
-                                    Prix HT
-                                    <?php if ($tri === 'prix'): ?>
-                                        <span class="sort-indicator"><?= $ordre === 'asc' ? '↑' : '↓' ?></span>
-                                    <?php endif; ?>
-                                </a>
-                            </th>
-                            <th>Expiration</th>
-                            <th>
-                                <a href="?tri=stock&ordre=<?= $tri === 'stock' && $ordre === 'asc' ? 'desc' : 'asc' ?>"
-                                   style="text-decoration: none; color: inherit;">
-                                    Stock
-                                    <?php if ($tri === 'stock'): ?>
-                                        <span class="sort-indicator"><?= $ordre === 'asc' ? '↑' : '↓' ?></span>
-                                    <?php endif; ?>
-                                </a>
-                            </th>
-                            <th>Enregistrement</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($produits as $p): ?>
-                            <?php 
-                            $estExpire = strtotime($p['date_expiration']) < time();
-                            $stockBas = $p['quantite_stock'] <= 5;
-                            ?>
-                            <tr <?= $estExpire ? 'style="opacity: 0.6;"' : '' ?>>
-                                <td>
-                                    <span class="code-badge"><?= echapper($p['code_barre']) ?></span>
-                                </td>
-                                <td><?= echapper($p['nom']) ?></td>
-                                <td class="price"><?= formatPrix($p['prix_unitaire_ht']) ?></td>
-                                <td>
-                                    <span <?= $estExpire ? 'style="color: red; font-weight: bold;"' : '' ?>>
-                                        <?= formatDate($p['date_expiration']) ?>
-                                        <?= $estExpire ? '⚠️ EXPIRÉ' : '' ?>
-                                    </span>
-                                </td>
-                                <td class="stock <?= $stockBas ? 'low' : '' ?>">
-                                    <?= $p['quantite_stock'] ?>
-                                    <?= $stockBas ? '⚠️' : '' ?>
-                                </td>
-                                <td><?= formatDate($p['date_enregistrement']) ?></td>
-                                <td>
-                                    <div class="actions-cell">
-                                        <a href="scanner.php?code=<?= urlencode($p['code_barre']) ?>" class="btn-edit">✏️ Modifier</a>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php else: ?>
-            <div class="table-container">
-                <div class="empty-state">
-                    <h2>📦 Aucun produit enregistré</h2>
-                    <p>Le catalogue est vide. Commencez par enregistrer les premiers produits.</p>
-                    <a href="scanner.php" class="btn btn-primary">➕ Ajouter un produit</a>
-                </div>
+
+        <!-- Alertes -->
+        <?php if ($produits_expires > 0): ?>
+            <div class="alert alert-warning">
+                ⚠️ <strong><?= $produits_expires ?> produit(s) expiré(s)</strong> - À retirer du stock
             </div>
         <?php endif; ?>
+
+        <!-- Contrôles -->
+        <div class="controls">
+            <select onchange="location.href='?statut=' + this.value">
+                <option value="tous" <?= $filtre_statut === 'tous' ? 'selected' : '' ?>>Tous les statuts</option>
+                <option value="actif" <?= $filtre_statut === 'actif' ? 'selected' : '' ?>>✓ Actifs</option>
+                <option value="inactif" <?= $filtre_statut === 'inactif' ? 'selected' : '' ?>>✗ Inactifs</option>
+            </select>
+            
+            <select onchange="location.href='?tri=' + (this.value.split('-')[0]) + '&ordre=' + (this.value.split('-')[1])">
+                <option value="nom-asc" <?= $tri === 'nom' && $ordre === 'asc' ? 'selected' : '' ?>>Trier par nom (A-Z)</option>
+                <option value="nom-desc" <?= $tri === 'nom' && $ordre === 'desc' ? 'selected' : '' ?>>Trier par nom (Z-A)</option>
+                <option value="prix_unitaire_ht-asc" <?= $tri === 'prix_unitaire_ht' && $ordre === 'asc' ? 'selected' : '' ?>>Trier par prix (croissant)</option>
+                <option value="prix_unitaire_ht-desc" <?= $tri === 'prix_unitaire_ht' && $ordre === 'desc' ? 'selected' : '' ?>>Trier par prix (décroissant)</option>
+            </select>
+            
+            <a href="scanner.php">➕ Ajouter un produit</a>
+            <a href="liste.php">🔄 Réinitialiser filtres</a>
+        </div>
+
+        <!-- Tableau des produits -->
+        <?php if (count($produits) > 0): ?>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Code-barre</th>
+                        <th>Nom</th>
+                        <th>Prix HT</th>
+                        <th>TVA</th>
+                        <th>Stock</th>
+                        <th>Date expiration</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($produits as $p): ?>
+                        <?php 
+                        $expire = strtotime($p['date_expiration']) < time();
+                        $stock_bas = $p['quantite_stock'] < 10;
+                        ?>
+                        <tr>
+                            <td><span class="code-barre"><?= htmlspecialchars($p['code_barre']) ?></span></td>
+                            <td><?= htmlspecialchars($p['nom']) ?></td>
+                            <td><span class="prix"><?= number_format($p['prix_unitaire_ht'], 2, ',', ' ') ?> CDF</span></td>
+                            <td><?= $p['taux_tva'] ?? 16 ?>%</td>
+                            <td>
+                                <span class="<?= $stock_bas ? 'stock-bas' : 'stock-ok' ?>">
+                                    <?= $p['quantite_stock'] ?> unités
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ($expire): ?>
+                                    <span class="expire">❌ <?= htmlspecialchars($p['date_expiration']) ?></span>
+                                <?php else: ?>
+                                    <?= htmlspecialchars($p['date_expiration']) ?>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <span class="<?= ($p['statut'] ?? 'actif') === 'actif' ? 'actif' : 'inactif' ?>">
+                                    <?= $p['statut'] ?? 'actif' ?>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="actions">
+                                    <a href="scanner.php?code=<?= urlencode($p['code_barre']) ?>" class="btn btn-modifier">✏️ Modifier</a>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <div class="empty">
+                <h2>📭 Aucun produit enregistré</h2>
+                <p>Commencez par <a href="scanner.php" style="color: #667eea; text-decoration: underline;">ajouter un produit</a></p>
+            </div>
+        <?php endif; ?>
+
+        <!-- Liens de navigation -->
+        <div class="action-links">
+            <a href="scanner.php">🔍 Scanner un produit</a>
+            <a href="../..">🏠 Accueil</a>
+        </div>
     </div>
 </body>
 </html>
